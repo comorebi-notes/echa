@@ -1,77 +1,106 @@
 import React, { useState, useEffect, useRef } from 'react'
+import firebase from 'firebase'
 import './App.sass'
+
+const colors = ['black', 'red', 'blue', 'green', 'yellow', 'purple', 'cyan']
 
 const App = () => {
   const svgElement = useRef(null)
+
+  const [roomId, setRoomId] = useState()
+  const [nextRoomId, setNextRoomId] = useState()
+  const [database, setDatabase] = useState()
+  const [elementsCollectionRef, setElementsCollectionRef] = useState()
 
   const [elements, setElements] = useState([])
   const [selectedColor, setSelectedColor] = useState('black')
   const [selectedMode, setSelectedMode] = useState('drawLine')
   const [strokeWidth, setStrokeWidth] = useState(5)
   const [lineId, setLineId] = useState(0)
-
   const [drawing, setDrawing] = useState(false)
 
-  const colors = ['black', 'red', 'blue', 'green', 'yellow', 'purple', 'cyan']
-
+  // roomId 初期化
   useEffect(() => {
-    // elementsCollectionRef = db
-    //   .collection('rooms')
-    //   .doc($route.params.roomId)
-    //   .collection('elements')
-    // elementsCollectionRef.onSnapshot((querySnapshot) => {
-    //   elements = []
-    //   querySnapshot.forEach((doc) => {
-    //     const element = doc.data()
-    //     element.id = doc.id
-    //     elements.push(element)
-    //   })
-    // })
-  }, [])
+    const url = window.location.href
+    if (url.includes('room_id=')) {
+      const regex = new RegExp('[?&]room_id(=([^&#]*)|&|#|$)')
+      const results = regex.exec(url)
+      setRoomId(decodeURIComponent(results[2].replace(/\+/g, ' ')))
+    } else {
+      const newRoomId = Math.random().toString(32).substring(2)
+      window.history.replaceState('', '', `/?room_id=${newRoomId}`)
+      setRoomId(newRoomId)
+    }
+  }, [roomId])
+
+  // データベース初期化
+  useEffect(() => {
+    if (roomId) {
+      const newDatabase = firebase.firestore()
+      setDatabase(newDatabase)
+    }
+  }, [roomId])
+  useEffect(() => {
+    if (roomId && database) setElementsCollectionRef(database.collection('rooms').doc(roomId).collection('elements'))
+  }, [roomId, database])
+  useEffect(() => {
+    if (roomId && elements && elementsCollectionRef) {
+      elementsCollectionRef.onSnapshot((querySnapshot) => {
+        const nextElements = [].concat(elements)
+        querySnapshot.forEach((doc) => {
+          const element = doc.data()
+          element.id = doc.id
+          nextElements.push(element)
+        })
+        setElements(nextElements)
+      })
+    }
+  }, [roomId, elementsCollectionRef])
 
   const dragMoveHandler = (event) => {
     if (!drawing) return
 
-    let newElement = elements.find((element) => element.id === lineId)
-    if (!newElement) newElement = { id: lineId, points: [], color: selectedColor, strokeWidth }
-
-    const rect = svgElement.current.getBoundingClientRect()
-
-    if (event.touches) {
-      event.clientX = event.touches[0].clientX
-      event.clientY = event.touches[0].clientY
-    }
-    newElement.points.push({
-      x: event.clientX - rect.x,
-      y: event.clientY - rect.y,
-    })
-
-    const nextElements = elements.filter((element) => element.id !== lineId)
-    nextElements.push(newElement)
-    setElements(nextElements)
-  }
-
-  const dragEndHandler = () => setLineId(lineId + 1)
-
-  const dragStart = () => {
-    // addNewElement(newElement)
     if (selectedMode === 'drawLine') {
-      setDrawing(true)
+      let newElement = elements.find((element) => element.id === lineId)
+      if (!newElement) newElement = { id: lineId, points: [], color: selectedColor, strokeWidth }
+
+      const rect = svgElement.current.getBoundingClientRect()
+
+      if (event.touches) {
+        event.clientX = event.touches[0].clientX
+        event.clientY = event.touches[0].clientY
+      }
+      newElement.points.push({
+        x: event.clientX - rect.x,
+        y: event.clientY - rect.y,
+      })
+
+      const nextElements = elements.filter((element) => element.id !== lineId)
+      nextElements.push(newElement)
+      setElements(nextElements)
     } else if (selectedMode === 'erase') {
-      // dragMoveHandler = () => {
-      //   const target = event.touches
-      //     ? document.elementFromPoint(
-      //       event.touches[0].clientX,
-      //       event.touches[0].clientY
-      //     )
-      //     : event.target
-      //   if (target.tagName === 'polyline') {
-      //     const elementId = target.getAttribute('element-id')
-      //     elementsCollectionRef.doc(elementId).delete()
-      //   }
-      // }
+      const target = event.touches
+        ? document.elementFromPoint(
+          event.touches[0].clientX,
+          event.touches[0].clientY
+        )
+        : event.target
+      if (target.tagName === 'polyline') {
+        const elementId = target.getAttribute('id')
+        elementsCollectionRef.doc(elementId).delete()
+      }
     }
   }
+
+  const dragEndHandler = () => {
+    const element = elements.find((element) => element.id === lineId)
+    if (element) {
+      setLineId(lineId + 1)
+      elementsCollectionRef.add(element)
+    }
+  }
+
+  const dragStart = () => setDrawing(true)
   const dragMove = (event) => {
     if (dragMoveHandler && event) dragMoveHandler(event)
   }
@@ -85,25 +114,13 @@ const App = () => {
     setSelectedMode('drawLine')
     setSelectedColor(color)
   }
-  const clearBoard = () => {
+  const clearBoard = async () => {
+    const query = elementsCollectionRef.limit(5000)
+    const snapshot = await query.get()
+    const batch = database.batch()
+    snapshot.docs.forEach((doc) => batch.delete(doc.ref))
     setElements([])
-    // if (!confirm('ボードをクリアしますか？')) return
-    // const query = elementsCollectionRef.limit(500)
-    // const snapshot = await query.get()
-    // const batch = db.batch()
-    // snapshot.docs.forEach((doc) => {
-    //   batch.delete(doc.ref)
-    // })
-    // return await batch.commit()
-  }
-  // const leaveRoom = () => {
-  //   // if (!confirm('このボードから退出しますか？')) return
-  //   // $router.push('/')
-  // }
-  const undo = () => {
-    const nextElements = [].concat(elements)
-    nextElements.pop()
-    setElements(nextElements)
+    return await batch.commit()
   }
 
   return (
@@ -126,12 +143,6 @@ const App = () => {
           onClick={() => setSelectedMode('erase')}
         >
           <strong>消しゴム</strong>
-        </button>
-        <button
-          type="button"
-          onClick={undo}
-        >
-          <strong>1つ戻る</strong>
         </button>
         <button
           type="button"
@@ -159,6 +170,7 @@ const App = () => {
         {elements.map((element => (
           <polyline
             key={element.id}
+            id={element.id}
             fill="none"
             stroke={element.color}
             strokeLinecap="round"
@@ -167,6 +179,12 @@ const App = () => {
           />
         )))}
       </svg>
+      <div className="next-room">
+        <input type="text" defaultValue={roomId} onChange={(e) => setNextRoomId(e.target.value)} />
+        <button type="button" onClick={() => { window.location.href = `/?room_id=${nextRoomId}` }}>
+          部屋を移動する
+        </button>
+      </div>
     </div>
   )
 }
