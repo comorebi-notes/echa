@@ -1,7 +1,7 @@
 # echa
 昔懐かしお絵描きチャットでございます。
 
-https://echa--comorebi-notes.web.app/?room_id=tdvj6h5dh98
+https://echa--comorebi-notes.web.app/
 
 ![image](https://user-images.githubusercontent.com/16236972/122015211-dbea1000-cdfa-11eb-8299-e095ecac2520.png)
 
