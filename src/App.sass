@@ -1,27 +1,40 @@
-.App
-  text-align: center
-  &-logo
-    height: 40vmin
-    pointer-events: none
-  &-header
-    background-color: #282c34
-    min-height: 100vh
-    display: flex
-    flex-direction: column
-    align-items: center
-    justify-content: center
-    font-size: calc(10px + 2vmin)
+html, body, #root, .container
+  width: 100%
+  height: 100%
+
+.container
+  display: grid
+  grid-template-rows: 50px 1fr
+.header
+  display: flex
+  align-items: center
+  padding: 5px 10px
+  white-space: nowrap
+  overflow-x: auto
+  & > button
+    user-select: none
+    padding: 0 1rem
+    min-width: 4rem
+    height: 40px
+    margin-right: 5px
+    border-width: 0
+    border-bottom: 5px solid #aaa
+    border-radius: 4px
     color: white
-  &-link
-    color: #61dafb
-
-@media (prefers-reduced-motion: no-preference)
-  .App-logo
-    animation: App-logo-spin infinite 20s linear
-
-@keyframes App-logo-spin
-  from
-    transform: rotate(0deg)
-  to
-    transform: rotate(360deg)
-
+    font-weight: bold
+    text-shadow: -1px -1px 0 black, 0 -1px 0 black, 1px -1px 0 black, -1px 0 0 black, 1px 0 0 black, -1px 1px 0 black, 0 1px 0 black, 1px 1px 0 black
+    cursor: pointer
+    position: relative
+    top: 0
+    transition: all .1s ease-in-out
+    &:hover, &:active, &:disabled
+      border-bottom-width: 0
+      top: 5px
+    &:disabled
+      cursor: auto
+    > svg
+      display: block
+      margin: 0 auto
+.canvas
+  width: 100%
+  height: 100%
